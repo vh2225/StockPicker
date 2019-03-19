@@ -1,3 +1,5 @@
+import datetime
+import os
 import re
 import urllib
 import urllib.request
@@ -105,11 +107,23 @@ if __name__ == "__main__":
     # argparser.add_argument('ticker', help='')
     # args = argparser.parse_args()
     stockSet = finviz()
-    for ticker in stockSet:
-        print("Fetching data for %s" % (ticker))
-        scraped_data = yahooParse(ticker)
-        print("Writing data to output file")
-        with open('%s-summary.json' % (ticker), 'w') as fp:
+    dateStamp = datetime.datetime.now().strftime("%Y-%m-%d")
+    os.makedirs(dateStamp, exist_ok=True)
+    script_dir = os.path.dirname(__file__)  # <-- absolute dir the script is in
+    # write companyList
+    compList = "{}/stockList.txt".format(dateStamp)
+    abs_file_path = os.path.join(script_dir, compList)
+    f = open(abs_file_path, "w+")
+    f.write(', '.join(sorted(stockSet)))
+    f.close()
+    # write companyData
+    compData = '{}/stockData.json'.format(dateStamp)
+    abs_file_path = os.path.join(script_dir, compData)
+
+    with open(abs_file_path, 'w') as fp:
+        for ticker in stockSet:
+            print("Fetching data for %s" % (ticker))
+            scraped_data = yahooParse(ticker)
             json.dump(scraped_data, fp, indent=4)
 
 #
