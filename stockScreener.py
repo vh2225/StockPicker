@@ -3,6 +3,9 @@ import datetime
 import json
 import os
 import re
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 import stockUtils
 
@@ -21,27 +24,33 @@ def stockGetStats(stockSet):
     return stockList, scraped_data
 
 
-def doDiff():
+def doDiff(stockList=None):
     regex = re.compile(r'\d+-\d+-\d+$')
     # get all dirs
     all_subdirs = sorted([d for d in os.listdir('.') if os.path.isdir(d) and regex.match(d)], reverse=True)
-    last2Runs = [all_subdirs]
-    # filter out the last 2
-    for dir in all_subdirs:
-        if len(last2Runs) == 2:
-            break
-        last2Runs.append(dir)
-    if len(last2Runs) == 2:
-        new = set((line.strip() for line in open(last2Runs[0] + '/stockList.json')))
-        old = set((line.strip() for line in open(last2Runs[1] + '/stockList.json')))
-        with open('diff.txt', 'w') as diff:
-            for line in new:
-                if line not in old:
-                    diff.write('[-] {}\n'.format(line))
+    if len(all_subdirs) == 0:
+        return
+    if stockList == None:
+        if len(all_subdirs) < 2:
+            return
+        new = set(json.load(open(all_subdirs[0] + '/stockList.json')))
+        old = set(json.load(open(all_subdirs[1] + '/stockList.json')))
+    else:
+        new = set(stockList)
+        old = set(json.load(open(all_subdirs[0] + '/stockList.json')))
+    diff = {'+': [], '-': []}
+    for stock in new:
+        if stock not in old:
+            diff['+'].append(stock)
 
-            for line in old:
-                if line not in new:
-                    diff.write('[+] {}\n'.format(line))
+    for stock in old:
+        if stock not in new:
+            diff['-'].append(stock)
+
+    with open('diff.txt', 'w') as fp:
+        json.dump(diff, fp, indent=4)
+
+    return json.dumps(diff)
 
 
 def writeStats(stockList, scraped_data, suffix=''):
@@ -61,14 +70,37 @@ def writeStats(stockList, scraped_data, suffix=''):
         json.dump(scraped_data, fp, indent=4)
 
 
-def emailStats(stockList=None, scraped_data=None):
-    doDiff()
-    print('todo')
+def emailStats(diff, stockList=None, scraped_data=None):
+    # pithonstork@gmail.com
+    gmailUser = 'pithonstork@gmail.com'
+    gmailPassword = '5252025$'
+    recipients = ['yangtze87@yahoo.com', 'yangtze87@gmail.com', 'xiongchuanxi@gmail.com']
+    message = '' + diff + '\n'
+    if stockList:
+        message += 'stockList:' + '\n'
+        message += json.dumps(stockList, sort_keys=True, indent=4) + '\n'
 
+    if scraped_data:
+        message += 'scraped_data:' + '\n'
+        message += json.dumps(scraped_data, sort_keys=True, indent=4) + '\n'
+
+    msg = MIMEMultipart()
+    msg['From'] = gmailUser
+    msg['Subject'] = "stock screening result"
+    msg.attach(MIMEText(message))
+
+    mailServer = smtplib.SMTP('smtp.gmail.com', 587)
+    mailServer.ehlo()
+    mailServer.starttls()
+    mailServer.ehlo()
+    mailServer.login(gmailUser, gmailPassword)
+    for recipient in recipients:
+        msg['To'] = recipient
+        mailServer.sendmail(gmailUser, recipient, msg.as_string())
+    mailServer.close()
 
 if __name__ == "__main__":
     parser = ap.ArgumentParser(description="My Script")
-    # parser.add_argument("--myArg")
     parser.add_argument('-l', '--list', nargs='+', help='<Required> Set flag', required=False)
     args, leftovers = parser.parse_known_args()
 
@@ -84,14 +116,9 @@ if __name__ == "__main__":
     if not inputExist:
         # check if already exist
         dateStamp = datetime.datetime.now().strftime("%Y-%m-%d")
-        # script_dir = os.path.dirname(__file__)
-        # abs_path = os.path.join(script_dir, dateStamp)
-        # if not os.path.isdir(abs_path):
-        # not existed
         if not os.path.isdir('./' + dateStamp):
-            print('existed')
             print("screening stock and writing result!")
             stockList, scraped_data = stockScreen()
+            diff = doDiff(stockList)
             writeStats(stockList, scraped_data)
-            emailStats(stockList, scraped_data)
-        emailStats()
+            emailStats(diff, stockList, scraped_data)
