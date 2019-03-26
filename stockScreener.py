@@ -4,8 +4,12 @@ import json
 import os
 import re
 import smtplib
+from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from os.path import basename
+
+import pandas as pd
 
 import stockUtils
 
@@ -38,19 +42,19 @@ def doDiff(stockList=None):
     else:
         new = set(stockList)
         old = set(json.load(open(all_subdirs[0] + '/stockList.json')))
-    diff = {'+': [], '-': []}
+    diff = {'add': [], 'remove': []}
     for stock in new:
         if stock not in old:
-            diff['+'].append(stock)
+            diff['add'].append(stock)
 
     for stock in old:
         if stock not in new:
-            diff['-'].append(stock)
+            diff['remove'].append(stock)
 
     with open('diff.txt', 'w') as fp:
         json.dump(diff, fp, indent=4)
 
-    return json.dumps(diff)
+    return diff
 
 
 def writeStats(stockList, scraped_data, suffix=''):
@@ -59,35 +63,57 @@ def writeStats(stockList, scraped_data, suffix=''):
     os.makedirs(dirName, exist_ok=True)
     script_dir = os.path.dirname(__file__)  # <-- absolute dir the script is in
     # write companyList
-    compList = "{}/stockList.json".format(dirName, suffix)
-    abs_file_path = os.path.join(script_dir, compList)
+    compListFile = "{}/stockList.json".format(dirName, suffix)
+    abs_file_path = os.path.join(script_dir, compListFile)
     with open(abs_file_path, 'w') as fp:
         json.dump(stockList, fp, indent=4)
-    # write companyData
-    compData = '{}/stockData.json'.format(dirName, suffix)
-    abs_file_path = os.path.join(script_dir, compData)
-    with open(abs_file_path, 'w') as fp:
-        json.dump(scraped_data, fp, indent=4)
+    df = pd.DataFrame(scraped_data)
+    df.set_index("ticker", inplace=True)
+    df.transpose()
+    stockDatacsv = '{}/stockData.csv'.format(dirName, suffix)
+    df.to_csv(stockDatacsv, sep='\t')
+    return stockDatacsv
 
 
-def emailStats(diff, stockList=None, scraped_data=None):
+def emailStats(diff=None, stockList=None, csv_file=None):
     # pithonstork@gmail.com
     gmailUser = 'pithonstork@gmail.com'
     gmailPassword = '5252025$'
     recipients = ['yangtze87@yahoo.com', 'yangtze87@gmail.com', 'xiongchuanxi@gmail.com']
-    message = '' + diff + '\n'
-    if stockList:
-        message += 'stockList:' + '\n'
-        message += json.dumps(stockList, sort_keys=True, indent=4) + '\n'
 
-    if scraped_data:
-        message += 'scraped_data:' + '\n'
-        message += json.dumps(scraped_data, sort_keys=True, indent=4) + '\n'
+    message = ''
+    if diff:
+        if diff['add']:
+            message += 'stock(s) added to the recommendation list: ' + json.dumps(diff['add']) + '\n'
+        if diff['remove']:
+            message += 'stock(s) removed from the recommendation list: ' + json.dumps(diff['remove']) + '\n'
+        if message == '':
+            message += 'there are no change in the recommendation list from the last report \n'
+
+    if not message == '':
+        message += '\n'
+
+    if stockList:
+        if diff:
+            message += 'recommended stocks:' + '\n'
+        else:
+            message += 'input stocks:' + '\n'
+        message += json.dumps(stockList, sort_keys=True, indent=4) + '\n'
 
     msg = MIMEMultipart()
     msg['From'] = gmailUser
-    msg['Subject'] = "stock screening result"
+    msg['Subject'] = "πThon Stork delivers today stock recommendations"
     msg.attach(MIMEText(message))
+
+    if csv_file:
+        with open(csv_file, "rb") as fil:
+            part = MIMEApplication(
+                fil.read(),
+                Name=basename(csv_file)
+            )
+        # After the file is closed
+        part['Content-Disposition'] = 'attachment; filename="%s"' % basename(csv_file)
+        msg.attach(part)
 
     mailServer = smtplib.SMTP('smtp.gmail.com', 587)
     mailServer.ehlo()
@@ -98,6 +124,7 @@ def emailStats(diff, stockList=None, scraped_data=None):
         msg['To'] = recipient
         mailServer.sendmail(gmailUser, recipient, msg.as_string())
     mailServer.close()
+
 
 if __name__ == "__main__":
     parser = ap.ArgumentParser(description="My Script")
@@ -110,8 +137,8 @@ if __name__ == "__main__":
             print("getting stats for the stockList stock and writing result!")
             inputExist = True
             stockList, scraped_data = stockGetStats(stockSet)
-            writeStats(stockList, scraped_data, '_custom')
-            emailStats(stockList, scraped_data)
+            stockDatacsv = writeStats(stockList, scraped_data, '_custom')
+            emailStats(None, stockList, stockDatacsv)
 
     if not inputExist:
         # check if already exist
@@ -120,5 +147,5 @@ if __name__ == "__main__":
             print("screening stock and writing result!")
             stockList, scraped_data = stockScreen()
             diff = doDiff(stockList)
-            writeStats(stockList, scraped_data)
-            emailStats(diff, stockList, scraped_data)
+            stockDatacsv = writeStats(stockList, scraped_data)
+            emailStats(diff, stockList, stockDatacsv)
