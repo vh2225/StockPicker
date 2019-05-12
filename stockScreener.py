@@ -149,3 +149,10 @@ if __name__ == "__main__":
             diff = doDiff(stockList)
             stockDatacsv = writeStats(stockList, scraped_data)
             emailStats(diff, stockList, stockDatacsv)
+        if not os.path.isdir('./' + dateStamp + '_holdings'):
+            stockSet = ['YIN', 'ARLP', 'XOP', 'PDLI', 'FF', 'CXDC', 'GXC', 'CAAS', 'GTS', 'OILNF', 'IBA', 'MRTN', 'SIM',
+                        'WMK', 'ESV', 'ASEJF', 'FUJHY', 'JAPSY', 'VNQ', 'USO', 'RY', 'OSN']
+            print("getting stats for the holdings and writing result!")
+            stockList, scraped_data = stockGetStats(stockSet)
+            stockDatacsv = writeStats(stockList, scraped_data, '_holdings')
+            emailStats(None, stockList, stockDatacsv)
