@@ -88,7 +88,7 @@ def emailStats(diff=None, stockList=None, csv_file=None):
         if diff['remove']:
             message += 'stock(s) removed from the recommendation list: ' + json.dumps(diff['remove']) + '\n'
         if message == '':
-            message += 'there are no change in the recommendation list from the last report \n'
+            message += 'there is no change in the recommendation list from the last report \n'
 
     if not message == '':
         message += '\n'
