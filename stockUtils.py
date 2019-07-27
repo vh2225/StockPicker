@@ -1,11 +1,11 @@
 import json
 import re
 import urllib
-import urllib.request
 from collections import OrderedDict
 from time import sleep
 
 import requests
+import urllib.request
 import urllib3
 from lxml import html
 
@@ -19,14 +19,14 @@ regexMask = {
 
 def yahooRequest(stock):
     try:
-        url = 'https://finance.yahoo.com/quote/{}/key-statistics?ltr=1'.format(stock)
-        # print('url: ' + url)
+        url = "https://finance.yahoo.com/quote/{}/key-statistics?ltr=1".format(stock)
+        # print("url: " + url)
         response = urllib.request.urlopen(url)
         html = str(response.read())
         return html
 
     except Exception as e:
-        print('failed in the main loop of yahooKeyStats' + str(e))
+        print("failed in the main loop of yahooKeyStats" + str(e))
 
 
 def yahooStats(html, stat):
@@ -36,7 +36,7 @@ def yahooStats(html, stat):
         return statVal
 
     except Exception as e:
-        print('failed in the main loop of yahooKeyStats' + str(e))
+        print("failed in the main loop of yahooKeyStats" + str(e))
 
 
 def getStatsFromYahoo(ticker):
@@ -66,8 +66,7 @@ def getStatsFromYahoo(ticker):
             table_value = ''.join(raw_table_value).strip()
             summary_data.update({table_key: table_value})
         summary_data.update(
-            {'1y Target Est': y_Target_Est, 'EPS (TTM)': eps, 'Earnings Date': earnings_date, 'ticker': ticker,
-             'url': url})
+            {"1y Target Est": y_Target_Est, "EPS (TTM)": eps, "Earnings Date": earnings_date, "url": url})
         return summary_data
     except Exception as e:
         print("Failed to parse json response in getStatsFromYahoo: " + str(e))
@@ -97,22 +96,54 @@ def getStatsFromFMPrep(ticker):
     summary_data = dict()
     try:
         # get general info
-        url = "https://financialmodelingprep.com/api/company/profile/{}".format(ticker)
+        url = "https://financialmodelingprep.com/api/v3/company/profile/{}".format(ticker)
         request = requests.get(url)
-        summary_data.update(json.loads(request.text[5:-5])[ticker])
+        if json.loads(request.text)["profile"]:
+            resp = json.loads(request.text)["profile"]
+            summary_data.update(resp)
+            summary_data.pop("image")
+        # get metrics - this would replace yahoo
+        url = "https://financialmodelingprep.com/api/v3/company-key-metrics/{}".format(ticker)
+        request = requests.get(url)
+        if json.loads(request.text)["metrics"]:
+            resp = json.loads(request.text)["metrics"][0]
+            summary_data.update(resp)
         # get ratings
-        url = "https://financialmodelingprep.com/api/company/rating/{}".format(ticker)
+        url = "https://financialmodelingprep.com/api/v3/company/rating/{}".format(ticker)
         request = requests.get(url)
-        summary_data.update(json.loads(request.text[5:-5])[ticker])
+        resp = json.loads(request.text)["rating"]
+        summary_data.update(resp)
         # get intrinsic val
-        url = "https://financialmodelingprep.com/api/company/discounted-cash-flow/{}".format(ticker)
+        url = "https://financialmodelingprep.com/api/v3/company/discounted-cash-flow/{}".format(ticker)
         request = requests.get(url)
-        summary_data.update(json.loads(request.text[5:-5])[ticker])
-        marginOS = "{0:.2f}".format(((summary_data.get('DCF') - summary_data.get('Price'))
-                                     * 100 / summary_data.get('Price'))) + '%'
+        dcf = 0
+        if json.loads(request.text)["DCF"]:
+            dcf = json.loads(request.text)["DCF"]
+            summary_data.update({"DCF": dcf})
+            marginOS = "{0:.2f}".format((float(summary_data.get("DCF")) - float(summary_data.get("price")))
+                                        * 100 / float(summary_data.get("price"))) + "%"
 
-        summary_data.update({'margin of safety': marginOS})
-        return summary_data
+            summary_data.update({"margin of safety": marginOS})
+        # get cap rate
+        url = "https://financialmodelingprep.com/api/v3/financials/income-statement/{}".format(ticker)
+        request = requests.get(url)
+        if json.loads(request.text)["financials"] and json.loads(request.text)["financials"][0] and \
+                json.loads(request.text)["financials"][0]["Net Income"]:
+            netIncome = json.loads(request.text)["financials"][0]["Net Income"]
+            capRate = "{0:.2f}".format((float(netIncome) * 100) / float(summary_data.get("mktCap"))) + "%"
+            summary_data.update({"capRate": capRate})
+        # get growth rates:
+        url = "https://financialmodelingprep.com/api/v3/financial-statement-growth/{}".format(ticker)
+        request = requests.get(url)
+        if json.loads(request.text)["growth"] and json.loads(request.text)["growth"][0]:
+            resp = json.loads(request.text)["growth"][0]
+            summary_data.update(resp)
+            summary_data.pop("date")
+        # # get EP rate
+        # if summary_data.get["PE ratio"]:
+        #     epRate = "{0:.2f}".format(100.0 / float(summary_data.get("PE ratio"))) + "%"
+        #     summary_data.update({"EP Rate": epRate})
+        # return summary_data
     except Exception as e:
         print("Failed to parse json response in getStatsFromFMPrep: " + str(e))
         return {"error": "Failed to parse json response in getStatsFromFMPrep" + str(e)}
@@ -120,7 +151,8 @@ def getStatsFromFMPrep(ticker):
 
 def getStat(ticker):
     summary_data = dict()
-    summary_data.update(getStatsFromYahoo(ticker))
+    summary_data.update({"ticker": ticker})
+    # summary_data.update(getStatsFromYahoo(ticker))
     summary_data.update(getStatsFromFMPrep(ticker))
     return OrderedDict(sorted(summary_data.items()))
 
@@ -130,10 +162,10 @@ def getStockFromFinviz():
         stockSet = set()
         page = 0;
         while True:
-            url = 'https://finviz.com/screener.ashx?v=111&f=cap_smallover,fa_curratio_o1.5,fa_ltdebteq_u0.3,fa_pb_u2,fa_pe_u20,sh_insiderown_o10&ft=4&o=ticker&r={}'.format(
+            url = "https://finviz.com/screener.ashx?v=111&f=cap_smallover,fa_curratio_o1.5,fa_ltdebteq_u0.3,fa_pb_u2,fa_pe_u20,sh_insiderown_o10&ft=4&o=ticker&r={}".format(
                 str(page * 20 + 1))
             page += 1
-            # print('url: ' + url)
+            # print("url: " + url)
             response = urllib.request.urlopen(url)
             html = str(response.read())
             # print(html)
@@ -147,4 +179,4 @@ def getStockFromFinviz():
         return stockSet
 
     except Exception as e:
-        print('failed in the main loop of finviz' + str(e))
+        print("failed in the main loop of finviz" + str(e))
