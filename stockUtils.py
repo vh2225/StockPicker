@@ -124,7 +124,11 @@ def getStatsFromFMPrep(ticker):
         if "dcf" in data:
             dcf = data.get("dcf")
             summary_data.update({"DCF": dcf})
-            price = float(summary_data.get("price"))
+            try:
+                price = float(summary_data.get("price"))
+            except Exception as e:
+                print("float casting exception fot price: " + ticker + " : " + str(e))
+                price = 0
             marginOS = "{0:.2f}".format((float(summary_data.get("DCF")) - price)
                                         * 100 / price) + "%" if price != 0 else "N/A"
 
@@ -134,7 +138,11 @@ def getStatsFromFMPrep(ticker):
         data = get_jsonparsed_data(url)
         if "financials" in data and data["financials"][0] and data["financials"][0]["Net Income"]:
             netIncome = data["financials"][0]["Net Income"]
-            mktCap=float(summary_data.get("mktCap"))
+            try:
+                mktCap = float(summary_data.get("mktCap"))
+            except Exception as e:
+                print("float casting exception fot mktCap: " + ticker + " : " + str(e))
+                mktCap = 0
             capRate = "{0:.2f}".format((float(netIncome) * 100) / mktCap) + "%" if mktCap != 0 else "N/A"
             summary_data.update({"capRate": capRate})
         # get growth rates:
@@ -145,7 +153,11 @@ def getStatsFromFMPrep(ticker):
             summary_data.pop("date")
         # get EP rate
         if "PE ratio" in summary_data:
-            peRate = float(summary_data.get("PE ratio"))
+            try:
+                peRate = float(summary_data.get("PE ratio"))
+            except Exception as e:
+                print("float casting exception fot peRate: " + ticker + " : " + str(e))
+                peRate = 0
             epRate = "{0:.2f}".format(100.0 / peRate) + "%" if peRate != 0 else "N/A"
             summary_data.update({"EP Rate": epRate})
         return summary_data
@@ -160,6 +172,7 @@ def getStat(ticker):
     # summary_data.update(getStatsFromYahoo(ticker))
     summary_data.update(getStatsFromFMPrep(ticker))
     return OrderedDict(sorted(summary_data.items()))
+
 
 def get_jsonparsed_data(url):
     """
@@ -176,6 +189,7 @@ def get_jsonparsed_data(url):
     response = urlopen(url)
     data = response.read().decode("utf-8")
     return json.loads(data)
+
 
 def getStockFromFinviz():
     try:
