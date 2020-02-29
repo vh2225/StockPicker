@@ -9,6 +9,13 @@ import urllib.request
 import urllib3
 from lxml import html
 
+try:
+    # For Python 3.0 and later
+    from urllib.request import urlopen
+except ImportError:
+    # Fall back to Python 2's urllib2
+    from urllib2 import urlopen
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 regexMask = {
@@ -97,53 +104,51 @@ def getStatsFromFMPrep(ticker):
     try:
         # get general info
         url = "https://financialmodelingprep.com/api/v3/company/profile/{}".format(ticker)
-        request = requests.get(url)
-        if json.loads(request.text)["profile"]:
-            resp = json.loads(request.text)["profile"]
-            summary_data.update(resp)
+        data = get_jsonparsed_data(url)
+        if "profile" in data:
+            summary_data.update(data["profile"])
             summary_data.pop("image")
         # get metrics - this would replace yahoo
         url = "https://financialmodelingprep.com/api/v3/company-key-metrics/{}".format(ticker)
-        request = requests.get(url)
-        if json.loads(request.text)["metrics"]:
-            resp = json.loads(request.text)["metrics"][0]
-            summary_data.update(resp)
+        data = get_jsonparsed_data(url)
+        if "metrics" in data:
+            summary_data.update(data["metrics"][0])
         # get ratings
         url = "https://financialmodelingprep.com/api/v3/company/rating/{}".format(ticker)
-        request = requests.get(url)
-        resp = json.loads(request.text)["rating"]
-        summary_data.update(resp)
+        data = get_jsonparsed_data(url)
+        if "rating" in data:
+            summary_data.update(data["rating"])
         # get intrinsic val
         url = "https://financialmodelingprep.com/api/v3/company/discounted-cash-flow/{}".format(ticker)
-        request = requests.get(url)
-        dcf = 0
-        if json.loads(request.text)["DCF"]:
-            dcf = json.loads(request.text)["DCF"]
+        data = get_jsonparsed_data(url)
+        if "dcf" in data:
+            dcf = data.get("dcf")
             summary_data.update({"DCF": dcf})
-            marginOS = "{0:.2f}".format((float(summary_data.get("DCF")) - float(summary_data.get("price")))
-                                        * 100 / float(summary_data.get("price"))) + "%"
+            price = float(summary_data.get("price"))
+            marginOS = "{0:.2f}".format((float(summary_data.get("DCF")) - price)
+                                        * 100 / price) + "%" if price != 0 else "N/A"
 
             summary_data.update({"margin of safety": marginOS})
         # get cap rate
         url = "https://financialmodelingprep.com/api/v3/financials/income-statement/{}".format(ticker)
-        request = requests.get(url)
-        if json.loads(request.text)["financials"] and json.loads(request.text)["financials"][0] and \
-                json.loads(request.text)["financials"][0]["Net Income"]:
-            netIncome = json.loads(request.text)["financials"][0]["Net Income"]
-            capRate = "{0:.2f}".format((float(netIncome) * 100) / float(summary_data.get("mktCap"))) + "%"
+        data = get_jsonparsed_data(url)
+        if "financials" in data and data["financials"][0] and data["financials"][0]["Net Income"]:
+            netIncome = data["financials"][0]["Net Income"]
+            mktCap=float(summary_data.get("mktCap"))
+            capRate = "{0:.2f}".format((float(netIncome) * 100) / mktCap) + "%" if mktCap != 0 else "N/A"
             summary_data.update({"capRate": capRate})
         # get growth rates:
         url = "https://financialmodelingprep.com/api/v3/financial-statement-growth/{}".format(ticker)
-        request = requests.get(url)
-        if json.loads(request.text)["growth"] and json.loads(request.text)["growth"][0]:
-            resp = json.loads(request.text)["growth"][0]
-            summary_data.update(resp)
+        data = get_jsonparsed_data(url)
+        if "growth" in data and data["growth"][0]:
+            summary_data.update(data["growth"][0])
             summary_data.pop("date")
-        # # get EP rate
-        # if summary_data.get["PE ratio"]:
-        #     epRate = "{0:.2f}".format(100.0 / float(summary_data.get("PE ratio"))) + "%"
-        #     summary_data.update({"EP Rate": epRate})
-        # return summary_data
+        # get EP rate
+        if "PE ratio" in summary_data:
+            peRate = float(summary_data.get("PE ratio"))
+            epRate = "{0:.2f}".format(100.0 / peRate) + "%" if peRate != 0 else "N/A"
+            summary_data.update({"EP Rate": epRate})
+        return summary_data
     except Exception as e:
         print("Failed to parse json response in getStatsFromFMPrep: " + str(e))
         return {"error": "Failed to parse json response in getStatsFromFMPrep" + str(e)}
@@ -156,6 +161,21 @@ def getStat(ticker):
     summary_data.update(getStatsFromFMPrep(ticker))
     return OrderedDict(sorted(summary_data.items()))
 
+def get_jsonparsed_data(url):
+    """
+    Receive the content of ``url``, parse it as JSON and return the object.
+
+    Parameters
+    ----------
+    url : str
+
+    Returns
+    -------
+    dict
+    """
+    response = urlopen(url)
+    data = response.read().decode("utf-8")
+    return json.loads(data)
 
 def getStockFromFinviz():
     try:
