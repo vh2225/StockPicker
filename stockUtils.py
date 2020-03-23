@@ -150,7 +150,7 @@ def getStatsFromFMPrep(ticker):
             try:
                 peRate = float(summary_data.get("PE ratio"))
             except Exception as e:
-                print("float casting exception fot peRate: " + ticker + " : " + str(e))
+                print("float casting exception for peRate: " + ticker + " : " + str(e))
                 peRate = 0
             epRate = "{0:.2f}".format(100.0 / peRate) + "%" if peRate != 0 else "N/A"
             summary_data.update({"EP Rate": epRate})
@@ -190,7 +190,11 @@ def getStockFromFinviz():
         stockSet = set()
         page = 0;
         while True:
-            url = "https://finviz.com/screener.ashx?v=111&f=cap_smallover,fa_curratio_o1.5,fa_ltdebteq_u0.3,fa_pb_u2,fa_pe_u20,sh_insiderown_o10&ft=4&o=ticker&r={}".format(
+            # url = "https://finviz.com/screener.ashx?v=111&f=cap_smallover,fa_curratio_o1.5,fa_ltdebteq_u0.3,fa_pb_u2,fa_pe_u20,sh_insiderown_o10&ft=4&o=ticker&r={}".format(
+            #     str(page * 20 + 1))
+            # url = "https://finviz.com/screener.ashx?v=111&f=cap_largeover,fa_curratio_o1.5,fa_ltdebteq_u0.5,fa_pb_u3,fa_pe_u20&o=ticker&r={}".format(
+            #     str(page * 20 + 1))
+            url = "https://finviz.com/screener.ashx?v=111&f=cap_midover,fa_debteq_u0.5,fa_eps5years_pos,fa_ltdebteq_u0.3,fa_pb_u2,fa_pe_u10,fa_pfcf_low&ft=2&o=ticker&r={}".format(
                 str(page * 20 + 1))
             page += 1
             # print("url: " + url)
