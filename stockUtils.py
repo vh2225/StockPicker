@@ -151,11 +151,15 @@ def getStatsFromFMPrep(ticker):
         response = requests.get(url, verify=False)
         sleep(4)
         parser = html.fromstring(response.content)
-        fcfps = float(parser.xpath('//div[@id="target_def_description" and @class=""]/p[2]/strong[5]/text()')[0][1:])
-        tenCap = fcfps * 10
+        try:
+            fcfps = float(parser.xpath('//div[@id="target_def_description" and @class=""]/p[2]/strong[5]/text()')[0][1:].replace(',', ''))
+            tenCap = fcfps * 10
+        except Exception as e:
+            print("cannot process tenCap price: " + ticker + " : " + str(e))
+            tenCap = "N/A"
         summary_data.update({"10 CAP price": tenCap})
 
-        # get sumarry URL:
+        # get guru URL:
         summary_data.update({"Guru Notes": "https://www.gurufocus.com/stock/{}/summary".format(ticker)})
 
         # get EP rate
