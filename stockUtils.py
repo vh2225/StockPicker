@@ -155,6 +155,9 @@ def getStatsFromFMPrep(ticker):
         tenCap = fcfps * 10
         summary_data.update({"10 CAP price": tenCap})
 
+        # get sumarry URL:
+        summary_data.update({"Guru Notes": "https://www.gurufocus.com/stock/{}/summary".format(ticker)})
+
         # get EP rate
         if "PE ratio" in summary_data:
             try:
