@@ -117,7 +117,7 @@ def getStatsFromFMPrep(ticker):
         data = get_jsonparsed_data(url)
         if "dcf" in data:
             dcf = data.get("dcf")
-            summary_data.update({"3. DCF": dcf})
+            summary_data.update({"DCF": dcf})
             try:
                 price = float(summary_data.get("price"))
             except Exception as e:
@@ -126,7 +126,7 @@ def getStatsFromFMPrep(ticker):
             marginOS = "{0:.2f}".format((float(summary_data.get("DCF")) - price)
                                         * 100 / price) + "%" if price != 0 else "N/A"
 
-            summary_data.update({"2. margin of safety": marginOS})
+            summary_data.update({"margin of safety": marginOS})
         # get cap rate
         url = "https://financialmodelingprep.com/api/v3/financials/income-statement/{}".format(ticker)
         data = get_jsonparsed_data(url)
@@ -153,7 +153,7 @@ def getStatsFromFMPrep(ticker):
         parser = html.fromstring(response.content)
         fcfps = float(parser.xpath('//div[@id="target_def_description" and @class=""]/p[2]/strong[5]/text()')[0][1:])
         tenCap = fcfps * 10
-        summary_data.update({"1. 10 CAP price": tenCap})
+        summary_data.update({"10 CAP price": tenCap})
 
         # get EP rate
         if "PE ratio" in summary_data:
