@@ -115,14 +115,14 @@ def getStatsFromFMPrep(ticker):
         # get intrinsic val
         url = "https://financialmodelingprep.com/api/v3/company/discounted-cash-flow/{}".format(ticker)
         data = get_jsonparsed_data(url)
+        try:
+            price = float(summary_data.get("price"))
+        except Exception as e:
+            print("float casting exception fot price: " + ticker + " : " + str(e))
+            price = 0
         if "dcf" in data:
             dcf = data.get("dcf")
             summary_data.update({"DCF": dcf})
-            try:
-                price = float(summary_data.get("price"))
-            except Exception as e:
-                print("float casting exception fot price: " + ticker + " : " + str(e))
-                price = 0
             marginOS = "{0:.2f}".format((float(summary_data.get("DCF")) - price)
                                         * 100 / price) + "%" if price != 0 else "N/A"
 
@@ -154,10 +154,13 @@ def getStatsFromFMPrep(ticker):
         try:
             fcfps = float(parser.xpath('//div[@id="target_def_description" and @class=""]/p[2]/strong[5]/text()')[0][1:].replace(',', ''))
             tenCap = fcfps * 10
+            discountNeeded = 1 - (tenCap/price)
         except Exception as e:
             print("cannot process tenCap price: " + ticker + " : " + str(e))
             tenCap = "N/A"
+            discountNeeded = "N/A"
         summary_data.update({"10 CAP price": tenCap})
+        summary_data.update({"discount Needed": discountNeeded})
 
         # get guru URL:
         summary_data.update({"Guru Notes": "https://www.gurufocus.com/stock/{}/summary".format(ticker)})
