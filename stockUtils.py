@@ -129,7 +129,9 @@ def getStatsFromFMPrep(ticker):
         data = get_jsonparsed_data(url)
         if "dcf" in data:
             try:
-                price = float(data.get("Stock Price"))
+                if ("price" not in summary_data or summary_data.get("price") == 0) and "Stock Price" in data:
+                    summary_data.update({"price": float(data.get("Stock Price"))})
+                price = summary_data.get("price")
             except Exception as e:
                 print("float casting exception fot price: " + ticker + " : " + str(e))
                 price = 0
@@ -145,7 +147,7 @@ def getStatsFromFMPrep(ticker):
         if "financials" in data and data["financials"][0] and data["financials"][0]["Net Income"]:
             netIncome = data["financials"][0]["Net Income"]
             try:
-                mktCap = float(summary_data.get("mktCap"))
+                mktCap = float(summary_data.get("mktCap")) if "mktCap" in summary_data else 0
             except Exception as e:
                 print("float casting exception fot mktCap: " + ticker + " : " + str(e))
                 mktCap = 0
@@ -168,6 +170,7 @@ def getStatsFromFMPrep(ticker):
         sleep(4)
         parser = html.fromstring(response.content)
         try:
+            price = summary_data.get("price")
             fcfps = float(parser.xpath('//div[@id="target_def_description" and @class=""]/p[2]/strong[5]/text()')[0][1:].replace(',', ''))
             tenCap = fcfps * 10
             discountNeeded = 1 - (tenCap/price)
