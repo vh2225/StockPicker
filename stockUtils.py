@@ -102,11 +102,23 @@ def getStatsFromFMPrep(ticker):
         if "profile" in data:
             summary_data.update(data["profile"])
             summary_data.pop("image")
+            summary_data.pop("website")
+            summary_data.pop("description")
+            summary_data.pop("ceo")
         # get metrics - this would replace yahoo
         url = "https://financialmodelingprep.com/api/v3/company-key-metrics/{}".format(ticker)
         data = get_jsonparsed_data(url)
         if "metrics" in data:
-            summary_data.update(data["metrics"][0])
+            summary_data.update({"EV": data["metrics"][0]["Enterprise Value"]})
+            summary_data.update({"PE": data["metrics"][0]["PE ratio"]})
+            summary_data.update({"PB": data["metrics"][0]["PB ratio"]})
+            summary_data.update({"EV to FCF": data["metrics"][0]["EV to Free cash flow"]})
+            summary_data.update({"Debt to Equity": data["metrics"][0]["Debt to Equity"]})
+            summary_data.update({"Debt to Assets": data["metrics"][0]["Debt to Assets"]})
+            summary_data.update({"Current ratio": data["metrics"][0]["Current ratio"]})
+            summary_data.update({"Dividend Yield": data["metrics"][0]["Dividend Yield"]})
+            summary_data.update({"Graham Number": data["metrics"][0]["Graham Number"]})
+            summary_data.update({"Graham Net-Net": data["metrics"][0]["Graham Net-Net"]})
         # get ratings
         url = "https://financialmodelingprep.com/api/v3/company/rating/{}".format(ticker)
         data = get_jsonparsed_data(url)
@@ -115,12 +127,12 @@ def getStatsFromFMPrep(ticker):
         # get intrinsic val
         url = "https://financialmodelingprep.com/api/v3/company/discounted-cash-flow/{}".format(ticker)
         data = get_jsonparsed_data(url)
-        try:
-            price = float(summary_data.get("price"))
-        except Exception as e:
-            print("float casting exception fot price: " + ticker + " : " + str(e))
-            price = 0
         if "dcf" in data:
+            try:
+                price = float(data.get("Stock Price"))
+            except Exception as e:
+                print("float casting exception fot price: " + ticker + " : " + str(e))
+                price = 0
             dcf = data.get("dcf")
             summary_data.update({"DCF": dcf})
             marginOS = "{0:.2f}".format((float(summary_data.get("DCF")) - price)
@@ -143,8 +155,12 @@ def getStatsFromFMPrep(ticker):
         url = "https://financialmodelingprep.com/api/v3/financial-statement-growth/{}".format(ticker)
         data = get_jsonparsed_data(url)
         if "growth" in data and data["growth"][0]:
-            summary_data.update(data["growth"][0])
-            summary_data.pop("date")
+            summary_data.update({"EPS Growth": data["growth"][0]["EPS Growth"]})
+            summary_data.update({"EPS Diluted Growth": data["growth"][0]["EPS Diluted Growth"]})
+            summary_data.update({"10Y CF Growth": data["growth"][0]["10Y Operating CF Growth (per Share)"]})
+            summary_data.update({"5Y CF Growth": data["growth"][0]["5Y Operating CF Growth (per Share)"]})
+            summary_data.update({"3Y CF Growth": data["growth"][0]["3Y Operating CF Growth (per Share)"]})
+            summary_data.update({"Debt Growth": data["growth"][0]["Debt Growth"]})
 
         # get FCF
         url = "https://www.gurufocus.com/term/total_freecashflow/{}/Free%252BCash%252BFlow".format(ticker)
@@ -160,20 +176,21 @@ def getStatsFromFMPrep(ticker):
             tenCap = "N/A"
             discountNeeded = "N/A"
         summary_data.update({"10 CAP price": tenCap})
-        summary_data.update({"discount Needed": discountNeeded})
+        summary_data.update({"Discount Needed": discountNeeded})
 
         # get guru URL:
-        summary_data.update({"Guru Notes": "https://www.gurufocus.com/stock/{}/summary".format(ticker)})
+        summary_data.update({"Guru Summary": "https://www.gurufocus.com/stock/{}/summary".format(ticker)})
 
-        # get EP rate
-        if "PE ratio" in summary_data:
-            try:
-                peRate = float(summary_data.get("PE ratio"))
-            except Exception as e:
-                print("float casting exception for peRate: " + ticker + " : " + str(e))
-                peRate = 0
-            epRate = "{0:.2f}".format(100.0 / peRate) + "%" if peRate != 0 else "N/A"
-            summary_data.update({"EP Rate": epRate})
+        # # get EP rate
+        # if "PE ratio" in summary_data:
+        #     try:
+        #         peRate = float(summary_data.get("PE ratio"))
+        #     except Exception as e:
+        #         print("float casting exception for peRate: " + ticker + " : " + str(e))
+        #         peRate = 0
+        #     epRate = "{0:.2f}".format(100.0 / peRate) + "%" if peRate != 0 else "N/A"
+        #     summary_data.update({"EP Rate": epRate})
+
         return summary_data
     except Exception as e:
         print("Failed to parse json response in getStatsFromFMPrep: " + str(e))

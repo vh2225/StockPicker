@@ -154,7 +154,8 @@ if __name__ == "__main__":
                         'WMK', 'ESV', 'ASEJF', 'FUJHY', 'JAPSY', 'VNQ', 'USO', 'RY', 'OSN', 'TWTR', 'BRK.B',
                         'GOOGL', 'MSFT', 'AMZN', 'AAPL', 'TSLA', 'INTC', 'BABA', 'JD', 'TCEHY', 'BRK-B', 'IEP', 'PSHZF',
                         'COST', 'JNJ', 'MCD', 'NKE', 'PG', 'UL', 'PEP', 'DIS', 'MO', 'COKE', 'HD', 'WMT', 'XOM', 'LUV',
-                        'DAL', 'PK', 'WH', 'MAR', 'H', 'ICHGF', 'ALK', 'CVX', 'COP', 'EOG', 'OXY', 'MMM', 'MU', 'BTU']
+                        'DAL', 'PK', 'WH', 'MAR', 'H', 'ICHGF', 'ALK', 'CVX', 'COP', 'EOG', 'OXY', 'MMM', 'MU', 'BTU',
+                        'UNM']
             print("getting stats for the holdings and writing result!")
             stockList, scraped_data = stockGetStats(stockSet)
             stockDatacsv = writeStats(stockList, scraped_data, '_holdings')
